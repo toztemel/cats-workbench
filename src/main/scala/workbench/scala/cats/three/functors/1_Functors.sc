@@ -217,3 +217,14 @@ object Tree{
 //Branch(Leaf(10), Leaf(20)).map(_*2)
 Tree.leaf(100).map(_*2)
 Tree.branch(Tree.leaf(10), Tree.leaf(20)).map(_*2)
+
+/*
+Contravariant and Invariant Functors
+Functor:
+  appending transformation to a chain
+cantravariant functors:
+  prepending operations to a chain
+invariant functors:
+  building a bidirectional chain of operations
+
+ */
