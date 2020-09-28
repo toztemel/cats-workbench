@@ -82,3 +82,30 @@ def combine: Future[Int] =
 def combine2 : Future[Int] =
   slow.flatMap(f1 =>
     slower.map(f2 => f1 + f2))
+
+/*
+Definition of a Monad
+- pure: of type A => F[A]
+    abstracts over constructors, to create new monadic context from a plain value
+- flatMap: ogf type (F[A], A=>F[B]) => F[B]
+    sequencing step, extracts value from a context and generate next context in sequence
+- obeys these laws:
+--  Left identity:  pure(a).flatMap(func) == func(a)
+--  Right identity: m.flatMap(pure) == m
+--  Associativity:  m.flatMap(f).flatMap(g) == m.flatMap(x => f(x).flatMap(g))
+ */
+trait Monad[F[_]] {
+  def pure[A](value:A): F[A]
+
+  def flatMap[A,B](value:F[A])(func: A=>F[B]): F[B]
+
+  def map[A,B] (value: F[A])(func: A=>B): F[B] = flatMap(value)(a => pure(func(a)))
+
+}
+
+/*
+
+Monads in Cats
+
+
+ */
