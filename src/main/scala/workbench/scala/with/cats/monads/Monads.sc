@@ -34,7 +34,7 @@ So, as we call flatMap,
 - sequence continues
 - returns fail-fast error
  */
-def stringDivideBy(a: String, b:String): Option[Int]=
+def stringDivideBy(a: String, b: String): Option[Int] =
   parseInt(a).flatMap(aNum =>
     parseInt(b).flatMap(bNum =>
       divide(aNum, bNum)))
@@ -44,7 +44,7 @@ def stringDivideBy(a: String, b:String): Option[Int]=
 - Every monad is also a functor
 - having both flatMap and map, we can use for-comprehensions to clarify sequencing behavior
  */
-def stringDivideBy2(a:String, b:String): Option[Int]=
+def stringDivideBy2(a: String, b: String): Option[Int] =
   for {
     numA <- parseInt(a)
     numB <- parseInt(b)
@@ -59,17 +59,18 @@ Lists
 for {
   x <- (1 to 3).toList
   y <- (4 to 5).toList
-} yield (x,y)
+} yield (x, y)
 
 /*
 Futures
 - sequences computations regardless of them being asynchronous
 
  */
+
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-def slow:Future[Int]= ???
+def slow: Future[Int] = ???
 def slower: Future[Int] = ???
 
 // runs in sequence
@@ -79,7 +80,7 @@ def combine: Future[Int] =
     f2 <- slower
   } yield f1 + f2
 
-def combine2 : Future[Int] =
+def combine2: Future[Int] =
   slow.flatMap(f1 =>
     slower.map(f2 => f1 + f2))
 
@@ -94,12 +95,12 @@ Definition of a Monad
 --  Right identity: m.flatMap(pure) == m
 --  Associativity:  m.flatMap(f).flatMap(g) == m.flatMap(x => f(x).flatMap(g))
  */
-trait Monad[F[_]] {
-  def pure[A](value:A): F[A]
+trait AMonad[F[_]] {
+  def pure[A](value: A): F[A]
 
-  def flatMap[A,B](value:F[A])(func: A=>F[B]): F[B]
+  def flatMap[A, B](value: F[A])(func: A => F[B]): F[B]
 
-  def map[A,B] (value: F[A])(func: A=>B): F[B] = flatMap(value)(a => pure(func(a)))
+  def map[A, B](value: F[A])(func: A => B): F[B] = flatMap(value)(a => pure(func(a)))
 
 }
 
@@ -107,5 +108,285 @@ trait Monad[F[_]] {
 
 Monads in Cats
 
+- extends FlatMap, for flatMap()
+- extends Applicative, for pure(), which extends Functor, for map()
+ */
+
+import cats.Monad
+import cats.instances.option._
+import cats.instances.list._
+
+val opt1 = Monad[Option].pure(3)
+val opt2 = Monad[Option].flatMap(opt1)(a => Some(a + 2))
+val opt3 = Monad[Option].map(opt2)(a => 100 + a)
+
+val list1 = Monad[List].pure(3)
+val list2 = Monad[List].flatMap(list1)(a => List(a, a * 10))
+val list3 = Monad[List].map(list2)(a => a + 123)
+
+/*
+Default Instances
+
+instances are provided in cats.instances
+
+Monad[Future] requires implicit ExecutionContext
+ */
+
+import cats.instances.future._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+val fm = Monad[Future]
+
+/*
+Monad Syntax
+comes from three places
+- cats.syntax.flatMap
+- cats.syntax.functor
+- cats.syntax.applicative
+or, for short
+- cats.implicits
+ */
+
+import cats.instances.option._
+import cats.instances.list._
+import cats.syntax.applicative._
+
+1.pure[Option]
+1.pure[List]
+
+/*
+Example with custom Monad
+ */
+
+
+import cats.Monad
+import cats.syntax.functor._
+import cats.syntax.flatMap._
+
+def sumSquare[F[_] : Monad](a: F[Int], b: F[Int]): F[Int] =
+  a.flatMap(x => b.map(y => x * x + y * y))
+
+def sumSquare2[F[_] : Monad](a: F[Int], b: F[Int]): F[Int] =
+  for {
+    x <- a
+    y <- b
+  } yield x * x + y * y
+
+import cats.instances.option._
+import cats.instances.list._
+
+sumSquare(Option(3), Option(4))
+sumSquare2(Option(3), Option(4))
+
+sumSquare(List(1, 2, 3), List(4, 5))
+sumSquare2(List(1, 2, 3), List(4, 5))
+
+/*
+4.3 Identity Monad
+
+Cat's flatMap and map syntax works well on Options, Lists, but not plain values
+sumSquare(2,3) gives syntax error
+
+To use sumSquare with either a monad or plain value:
+we should abstract over monadic/non-monadic code
+
+Cat provides `Id` type to bridge the gap
+ */
+
+import cats.Id
+
+sumSquare(2: Id[Int], 3: Id[Int]) // returns Id[Int]
+
+// definition of Id, a type alias
+//type Id[A] = A
+
+"Dave": Id[String]
+123: Id[Int]
+List(1, 2, 3): Id[List[Int]]
+
+val a = Monad[Id].pure(3)
+val b = Monad[Id].flatMap(a)(_ + 1)
+
+import cats.syntax.functor._
+import cats.syntax.flatMap._
+
+for {
+  x <- a
+  y <- b
+} yield x + y
+
+/*
+Example use case:
+We can run
+- asynchronously using Future in production
+- synchronously using Id in test
+ */
+
+/*
+Exercise: Monadic Secret Identities
 
  */
+
+import cats.Id
+
+def pure[A](value: A): Id[A] =
+  value
+
+def map[A, B](value: Id[A])(f: A => B): Id[B] =
+  f(value)
+
+def flatMap[A, B](value: Id[A])(f: A => Id[B]): Id[B] =
+  f(value)
+
+pure(123)
+map(123)(_ * 2)
+flatMap(123)(_ * 2)
+
+/*
+functors and monads as sequencing type classes
+- allow us to sequence operations, ignoring complications
+- for Id, no complication => map becames same as flatMap
+ */
+
+/*
+4.4 Either
+
+In scala 2.12 it became 'right biased'
+- with map,flatMap operations
+ */
+
+import cats.syntax.either._
+
+val ra = 3.asRight[String] // returns Either[String, Left]
+Either.catchOnly[NumberFormatException]("foo".toInt) // Either[NumberFormatException, Int]
+Either.catchNonFatal(sys.error("Badness")) // Either[Throwable, Nothing]
+
+Either.fromTry(scala.util.Try("foo".toInt)) // Either[Throwable, Int]
+Either.fromOption[String, Int](None, "Badness") // Either[String, Int]
+
+/*
+Transforming Eithers
+
+  - orElse
+  - getOrElse
+ */
+
+import cats.syntax.either._
+
+"Error".asLeft[Int].getOrElse(0)
+"Error".asLeft[Int].orElse(2.asRight[String])
+
+// ensure: to check whether right-value satisfies predicate
+(-1).asRight[String].ensure("Must be non negative")(_ > 0)
+
+// recover and recoverWith: provide error handling
+"error".asLeft[Int].recover {
+  case _: String => (-1)
+} // Right(-1)
+
+"error".asLeft[Int].recoverWith {
+  case _: String => Right(-1)
+} // Right(-1)
+
+// leftMap and biMap methods
+"foo".asLeft[Int].leftMap(_.reverse) // Left("oof")
+
+6.asRight[String].bimap(_.reverse, _ * 7) // Right(42)
+
+"bar".asLeft[Int].bimap(_.reverse, _ * 7) // Left("rab")
+
+// swap : to exchange left for right
+123.asRight[String].swap // Left(123)
+
+/*
+Error Handling
+- Either is typical for fail-fast error handling
+- sequence with flatMap
+- if one computation fails, remaining computations do not run
+ */
+for {
+  a <- 1.asRight[String]
+  b <- 0.asRight[String]
+  c <- if (b == 0) "DIV0".asLeft[Int]
+  else (a / b).asRight[String]
+} yield c * 100
+
+// Determine what type to use to represent errors
+
+// too generic:
+type Result[A] = Either[LoginError, A]
+
+// more specific:
+sealed trait LoginError extends Product with Serializable
+
+final case class UserNotFound(username: String) extends LoginError
+
+final case class PasswordIncorrect(username: String) extends LoginError
+
+case object UnexpectedError extends LoginError
+
+case class User(username: String, password: String)
+
+type LoginResult = Either[LoginError, User]
+
+// Choose error-handling behaviour based on type:
+def handleError(error: LoginError): Unit =
+  error match {
+    case UserNotFound(u) =>
+      println(s"User not found $u")
+
+    case PasswordIncorrect(u) =>
+      println(s"Password incorrect: $u")
+
+    case UnexpectedError =>
+      println("Unexpected error")
+  }
+
+val result1: LoginResult = User("dave", "123").asRight
+val result2: LoginResult = UserNotFound("dave").asLeft
+
+result1.fold(handleError, println) // User(dave, 123)
+result2.fold(handleError, println) // User not found: dave
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
