@@ -499,3 +499,33 @@ def factorial3(n: BigInt): Eval[BigInt] =
   else Eval.defer(factorial3(n-1).map(_*n))
 
 factorial3(50000)
+
+/*
+Exercise: Making foldRight stack safe
+ */
+
+// not safe
+def foldRight[A, B](as: List[A], acc: B)(fn: (A, B) => B): B =
+  as match {
+    case head :: tail =>
+      fn(head, foldRight(tail, acc)(fn))
+    case Nil =>
+      acc
+  }
+// safe
+import cats.Eval
+def foldRightEval[A, B](as: List[A], acc: Eval[B])
+                       (fn: (A, Eval[B]) => Eval[B]): Eval[B] =
+  as match {
+    case head :: tail =>
+      Eval.defer(fn(head, foldRightEval(tail, acc)(fn)))
+    case Nil =>
+      acc
+  }
+def foldRight2[A, B](as: List[A], acc: B)(fn: (A, B) => B): B =
+  foldRightEval(as, Eval.now(acc)) { (a, b) =>
+    b.map(fn(a, _))
+  }.value
+
+foldRight2((1 to 100000).toList, 0L)(_ + _)
+// res24: Long = 5000050000L
