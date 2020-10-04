@@ -13,12 +13,12 @@ Writer[W, A]
   - result of type A
  */
 
-//import cats.Id
+import cats.Id
 import cats.data.Writer
-//import cats.data.WriterT
+import cats.data.WriterT
 import cats.instances.vector._
 
-//val res: WriterT[Id, Vector[String], Int] =
+val res: WriterT[Id, Vector[String], Int] =
   Writer(Vector(
   "It was the best of times",
   "It was the worst of times"
@@ -133,19 +133,18 @@ import cats.data.Writer
 import cats.instances.vector._
 import cats.syntax.applicative._
 
-type Logged2[A] = Writer[Vector[String], A]
-42.pure[Logged2]
+42.pure[Logged]
 
 import cats.syntax.writer._
 
 Vector("a message").tell
 
-41.pure[Logged2].map(_+1)
+41.pure[Logged].map(_+1)
 
-def newFactorial(n: Int): Logged2[Int] = {
+def newFactorial(n: Int): Logged[Int] = {
   for {
     ans <- if (n == 0) {
-      1.pure[Logged2]
+      1.pure[Logged]
     } else {
       slowly(newFactorial(n - 1).map(_ * n))
     }
@@ -167,8 +166,9 @@ def newFactorial2(n: Int): Writer[Vector[String], Int] = {
 Await.result(Future.sequence(Vector(
   Future(newFactorial(5)),
   Future(newFactorial(5))
-)), 5.seconds)
+)).map(_.map(_.written)), 5.seconds)
+
 Await.result(Future.sequence(Vector(
   Future(newFactorial2(5)),
   Future(newFactorial2(5))
-)), 5.seconds)
+)).map(_.map(_.written)), 5.seconds)
