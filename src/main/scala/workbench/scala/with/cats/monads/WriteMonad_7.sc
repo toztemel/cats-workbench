@@ -1,4 +1,3 @@
-// https://www.scalawithcats.com/dist/scala-with-cats.html#writer-monad
 /*
 Writer Monad
   - lets us carry a log along with a computation

@@ -1,4 +1,3 @@
-// https://www.scalawithcats.com/dist/scala-with-cats.html#writer-monad
 /*
 cats.data.Reader
   - to sequence operations that depend on some input
